@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- <script src="{{ url_for('static', filename='plotly-2.12.1.min.js') }}"></script> -->
+  <script src="{{ url_for('static', filename='plotly-2.12.1.min.js') }}"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <title>KPTCL Analysis Dashboard</title>
+  <style>
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="page1" class="content">
+    <h1 style="font-size: 45px;"><b>KARNATAKA POWER TRANSMISSION CORPORATION LIMITED</b></h1>
+    <br>
+    <br>
+    <br>
+    <br>
+
+    <div class="center-container">
+      <div class="container">
+        <div class="wrap">
+          <form action="{{ url_for('upload') }}" method="POST" onsubmit="showPage2(); return false;">
+            <label for="fileInputControl" style="font-size: 20px;"><b>Select Folder Path: </b></label>
+          </div>
+            <input name="data[]" style="font-size: 15px;" type="file" id="fileInputControl" webkitdirectory="true" multiple />
+            <br> <br>
+            <input style="font-size:15px" type="submit" value="Upload">
+            <div id="message"></div>
+          </form>
+        
+      </div>
+    </div>
+  </div>
+
+  <div id="page2" class="row hidden">
+    <div class="container right-container">
+      <div class="wrap">
+        <h2 style="font-size: 20px;">Select Required Sets</h2>
+      </div>
+      <div>
+        <label for="dataset-selection"><b>Dataset Selection:</b></label>
+        <select id="dataset-selection" onchange="togglePage3()">
+          <option value="select">Select Dataset</option>
+          <option value="single">Single Dataset</option>
+          <option value="multiple">Multiple Datasets</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="page3" class="row hidden">
+    <div id="single-dataset-container" class="container right-container hidden">
+      <div class="wrap">
+        <h2 style="font-size: 20px;">Select Rows:</h2>
+        <a href="#" class="add" onclick="showLeftContainer()">&plus;</a>
+      </div>
+      <div class="left-container hidden">
+        <label for="columns-select" style="font-size: 20px;"><b>Select the Required Columns & rows: </b></label>
+        <div class="select-container">
+          <select id="columns-select" multiple></select>
+        </div>
+        <br>
+        <form onsubmit="handleSubmit(); return false">
+          <label for="from" style="font-size: 20px;"><b>From:</b></label>
+          <input type="number" id="from" name="from">
+          <br><br>
+          <label for="to" style="font-size: 20px;"><b>To:</b></label>
+          <input type="number" id="to" name="to">
+          <br><br>
+          <label for = "col" style="font-size: 20px;"><b>Enter Header Name:</b></label>
+          <br><br>
+          <P> NOTE: 1.  Header Name Should be Entered in Capital Letters Only.</P>
+          <P>2. Header Name Should be Entered as Same Order as Above Selected Column Names.</P>
+          <P>3. Each Header Name and Corresponding Row Number Should be Separated by Comma(,).
+          <p>4. No Space should be Used in both Header Name and Row Number containers. </p>
+          </P>
+          <br><br>
+          <input type="text" id="col" name="colValue">
+          <br><br>
+          <label for = "rowno" style="font-size: 20px;"><b>Enter Row Number:</b></label>
+          <input type="text" id="rowno" name="rowValue">
+          <br>
+          <br>
+          <input style="font-size:15px" type="submit" value="Submit">
+        </form>
+      </div>
+    </div>
+    <form onsubmit = "asyncFunction(); return false;">
+    <div id="multiple-datasets-container" class="container right-container hidden">
+      <div class="wrap">
+        <h2 style="font-size: 20px;">Select the Required Columns & Rows:  <br>  <p style="font-size: 14px;"> NOTE: All the Column Header Should be in Capital Letters Only.</p></h2>
+        
+        <a href="#" class="add">&plus;</a>
+       
+      </div>
+      <div class="inp-group"></div>
+      <input style="font-size: 15px;" type="submit" value="Submit" onclick = "handleSubmit()" class="btn btn-secondary">
+    </div>
+  </div>
+</form>
+  <div id="graph-container" >
+    <div id="chart" class="chart">
+  </div>
+</div>
+
+<div id="download-container" class="container hidden">
+  <button id="downloadButton">Download Selected Data</button>
+</div>
+
+<div id="clearUploadsContainer" class = "container hidden">
+  <button id="clearButton">Clear Uploads Folder</button>
+</div>
+
+<script>
+  async function asyncFunction() {
+    try {
+      // Your asynchronous code here
+      const response = await fetch('/upload');
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  }
+</script>
+<script>
+  $(document).ready(function () {
+      $('#downloadButton').click(function () {
+          // Perform an AJAX request to the Flask endpoint
+          $.ajax({
+              url: '/download_selected_data',
+              type: 'GET',
+              success: function (filename) {
+                  // Create a temporary link and click it to trigger the download
+                  var a = document.createElement('a');
+                  a.href = '/static/' + filename; // Assuming the file is in the 'static' folder
+                  a.download = filename;
+                  a.style.display = 'none';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+              }
+          });
+      });
+  });
+</script>
+<script>
+  $(document).ready(function () {
+      $('#downloadButton').click(function () {
+          // Navigate the browser to the download route
+          window.location.href = '/download_selected_data';
+      });
+  });
+</script>
+
+<script>
+  const clearButton = document.getElementById('clearButton');
+  clearButton.addEventListener('click', () => {
+      clearUploadsFolder();
+  });
+
+  function clearUploadsFolder() {
+      fetch('/clear_uploads', { method: 'GET' })
+          .then(response => response.text())
+          .then(message => {
+              console.log(message);
+              alert('Uploads folder cleared.');
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              alert('Error clearing uploads folder.');
+          });
+  }
+</script>
+
+  <script>
+    function showPage2() {
+      document.getElementById("page1").classList.add("hidden");
+      document.getElementById("page2").classList.remove("hidden");
+      document.getElementById("single-dataset-container").classList.add("hidden");
+      document.getElementById("multiple-datasets-container").classList.add("hidden");
+    }
+
+    function togglePage3() {
+      var datasetSelection = document.getElementById("dataset-selection");
+      var page3 = document.getElementById("page3");
+      var singleDatasetContainer = document.getElementById("single-dataset-container");
+      var multipleDatasetsContainer = document.getElementById("multiple-datasets-container");
+      var clearUploadsContainer = document.getElementById("clearUploadsContainer");
+
+      if (datasetSelection.value === "single") {
+        page3.classList.remove("hidden");
+        singleDatasetContainer.classList.remove("hidden");
+        multipleDatasetsContainer.classList.add("hidden");
+        document.getElementById("download-container").classList.remove("hidden");
+        clearUploadsContainer.classList.remove("hidden");
+
+      } else if (datasetSelection.value === "multiple") {
+        page3.classList.remove("hidden");
+        singleDatasetContainer.classList.add("hidden");
+        multipleDatasetsContainer.classList.remove("hidden");
+        document.getElementById("download-container").classList.remove("hidden");
+        clearUploadsContainer.classList.remove("hidden");
+      } else {
+        page3.classList.add("hidden");
+        singleDatasetContainer.classList.add("hidden");
+        multipleDatasetsContainer.classList.add("hidden");
+      }
+
+      var leftContainer = document.querySelector(".left-container");
+      leftContainer.classList.add("hidden");
+    }
+
+    function showLeftContainer() {
+      var leftContainer = document.querySelector(".left-container");
+      leftContainer.classList.remove("hidden");
+    }
+
+    function handleSubmit() {
+      // Check if the dataset selection is 'single' or 'multiple'
+      var datasetSelection = document.getElementById("dataset-selection").value;
+
+      if (datasetSelection === "single") {
+        // Handling single selected values
+        var dropdown = document.getElementById("columns-select");
+        var selectedValues = [];
+        for (var i = 0; i < dropdown.options.length; i++) {
+          if (dropdown.options[i].selected) {
+            selectedValues.push(dropdown.options[i].value);
+          }
+        }
+
+        var fromValue = document.getElementById("from").value;
+        var toValue = document.getElementById("to").value;
+        var colValue = document.getElementById("col").value;
+        var rowValue = document.getElementById("rowno").value;
+
+        var payload = {
+          selectedValues: selectedValues,
+          from: fromValue,
+          to: toValue,
+          colValue: colValue,
+          rowValue: rowValue
+        };
+        fetch("/process_selected_values", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        })
+          .then(response => response.json())
+          .then(data => {
+          buildgraph(data)
+            
+            // Handle the received data
+            console.log(data.message);
+
+            
+          })
+          .catch(error => {
+            // Handle any errors
+            console.error("Error:", error);
+            
+            
+          });
+      } else if (datasetSelection === "multiple") {
+        // Handling multiple selected values
+        var flexInputs = document.querySelectorAll(".flex input");
+        var selectedMValues = [];
+        var fromValues = [];
+        var toValues = [];
+        var colhValues = [];
+        var rowcValues = [];
+        // var selectedInputs = document.querySelectorAll("#multiple-datasets-container .inp-group");
+        // selectedInputs.forEach(input => {
+        //   var selectedValue = input.querySelector("input[name='selectedMValues[]']").value;
+        //   var fromValue = input.querySelector("input[name='from']").value;
+        //   var toValue = input.querySelector("input[name='to']").value;
+        //   var colhValue = input.querySelector("input[name='colh']").value;
+        //   var rowcValue = input.querySelector("input[name='rowc']").value;
+
+        //   selectedMValues.push(selectedValue);
+        //   fromValues.push(fromValue);
+        //   toValues.push(toValue);
+        //   colhValues.push(colhValue);
+        //   rowcValues.push(rowcValue);
+        // });
+
+        flexInputs.forEach(input => {
+      if (input.name === "selectedMValues[]") {
+        selectedMValues.push(input.value);
+      } else if (input.name === "from") {
+        fromValues.push(input.value);
+      } else if (input.name === "to") {
+        toValues.push(input.value);
+      } else if (input.name === "colh") {
+        colhValues.push(input.value);
+      } else if (input.name === "rowc") {
+        rowcValues.push(input.value);
+      }
+    });
+
+        var formData = new FormData();
+
+        selectedMValues.forEach(value => formData.append("selectedMValues[]", value));
+        fromValues.forEach(value => formData.append("from", value));
+        toValues.forEach(value => formData.append("to", value));
+        colhValues.forEach(value => formData.append("colh", value));
+        rowcValues.forEach(value => formData.append("rowc", value));
+
+
+        fetch("/process_selected_values", {
+          method: "POST",
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            // Handle the received data
+            console.log(data.message);
+            buildgraph(data)
+            
+          })
+          .catch(error => {
+            // Handle any errors
+            console.error("Error:", error);
+          });
+      }
+
+      return false;
+    }
+    // 
+    function buildgraph(data){
+  graph = data.graph
+  for (let i = 0; i < graph.length; i++) {
+    const element = graph[i];
+
+    var iDiv = document.createElement('div');
+    
+    iDiv.id = 'chart_'+String(i);
+    iDiv.className = 'chart';
+
+    document.getElementById('graph-container').appendChild(iDiv);
+    Plotly.newPlot('chart_'+String(i),JSON.parse(element),{});
+  }
+
+}
+  //      // Check if the dataset selection is 'single' or 'multiple'
+  //      var datasetSelection = document.getElementById("dataset-selection").value;
+
+  //     if (datasetSelection === "single") {
+  // // Handling single selected values
+  //     var dropdown = document.getElementById("columns-select");
+  //     var selectedValues = [];
+  //     for (var i = 0; i < dropdown.options.length; i++) {
+  //       if (dropdown.options[i].selected) {
+  //         selectedValues.push(dropdown.options[i].value);
+  //       }
+  //     }
+
+  //     var fromValue = document.getElementById("from").value;
+  //     var toValue = document.getElementById("to").value;
+
+  //     var payload = {
+  //       selectedValues: selectedValues,
+  //       from: fromValue,
+  //       to: toValue
+  //     };
+
+  //     fetch("/process_selected_values", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json"
+  //       },
+  //       body: JSON.stringify(payload)
+  //     })
+  //       .then(response => response.json())
+  //       .then(data => {
+  //         console.log(data);
+
+  //         if (data.hasOwnProperty("missing_files")) {
+  //           var errorMessage = `The following columns do not exist in all uploaded files: ${data.message}`;
+  //           document.getElementById("message").innerHTML = errorMessage;
+  //         } else if (data.hasOwnProperty("message")) {
+  //           var warningMessage = data.message;
+  //           document.getElementById("message").innerHTML = warningMessage;
+  //         } else {
+  //           var successMessage = "Selected values processed successfully!";
+  //           document.getElementById("message").innerHTML = successMessage;
+  //         }
+  //       })
+  //       .catch(error => {
+  //         console.error("Error:", error);
+  //       });
+
+  //     return false;
+  //   }
+  </script>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
